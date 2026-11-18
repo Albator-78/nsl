@@ -1651,6 +1651,25 @@ const fileContents = {
   'documents/note_dr_talmage.txt': 'NOTE INTERNE - PROJET TALMAGE\n-----------------------------\nLes premiers tests sur l\'architecture mobile Qt ARM s\'annoncent concluants.\nVérifier l\'alignement des triggers symboliques du module de rendu visuel.',
   'documents/project_schema.svg': '<svg width="100" height="100"><circle cx="50" cy="50" r="40" stroke="cyan" stroke-width="3" fill="none" /></svg>\n[Rendu Vectoriel SVG Simulateur - OK]'
 };
+  /* ─── SYSTÈME DE MONTAGE AUTOMATIQUE (ROOT) ─── */
+const mountedVolumes = new Set();
+
+const rootMountTable = [
+  { device: '/dev/dsk/c0t0d0s0', mountPoint: '~/bin',       fsType: 'ufs',   options: 'rw,suid' },
+  { device: '/dev/dsk/c0t0d0s1', mountPoint: '~/config',    fsType: 'ufs',   options: 'rw,nosuid' },
+  { device: '/dev/dsk/c0t1d0s0', mountPoint: '~/documents', fsType: 'zfs',   options: 'rw,atime' },
+  { device: '/dev/dsk/c0t2d0s0', mountPoint: '~/mnt/vault', fsType: 'crypt', options: 'rw,crypto7' }
+];
+
+// Ajouter le point de montage sécurisé ~/mnt/vault au filesystem virtuel
+fileSystem['~/mnt'] = ['vault'];
+fileSystem['~/mnt/vault'] = ['root_keys.pem', 'audit_master.db'];
+fileContents['mnt/vault/root_keys.pem'] = '-----BEGIN SDE CRYPTOLAYER-7 ROOT KEY-----\nMIIEpAIBAAKCAQEA7V9x... [LOCKED]';
+fileContents['mnt/vault/audit_master.db'] = '[SQLITE-SDE] 1428 entries verified. Integrity: 100%';
+fileContents['config/vfstab'] = rootMountTable
+  .map(m => `${m.device}\t${m.mountPoint}\t${m.fsType}\t-\tyes\t${m.options}`)
+  .join('\n');
+
 
 function updatePrompt() {
   const sigil = isRoot ? '#' : '$';
