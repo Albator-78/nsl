@@ -1826,6 +1826,8 @@ function handleCommand(cmdLine) {
       appendLine('  CMD &               Run command in background (creates a job)');
       appendLine('  jobs [-l]           List background jobs');
       appendLine('  fg [%n]             Bring background job to foreground');
+      appendline('  mount               mount files systems');
+      appendline('  umount              unmount files systems');
       if (isRoot) appendLine('  ⚡ Mode ROOT actif — accès total au système.', 'warn');
       break;
 
