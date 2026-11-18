@@ -1670,6 +1670,34 @@ fileContents['config/vfstab'] = rootMountTable
   .map(m => `${m.device}\t${m.mountPoint}\t${m.fsType}\t-\tyes\t${m.options}`)
   .join('\n');
 
+  function autoMountAll(silent = false) {
+  if (!isRoot) {
+    if (!silent) appendLine('mount: permission denied (root privileges required)', 'error');
+    return;
+  }
+
+  // S'assurer que ~/mnt est visible dans ~
+  if (!fileSystem['~'].includes('mnt')) {
+    fileSystem['~'].push('mnt');
+  }
+
+  let newlyMounted = 0;
+  rootMountTable.forEach(entry => {
+    if (!mountedVolumes.has(entry.mountPoint)) {
+      mountedVolumes.add(entry.mountPoint);
+      newlyMounted++;
+      if (!silent) {
+        appendLine(`  [MOUNT] ${entry.device} -> ${entry.mountPoint} (${entry.fsType}, ${entry.options})`, 'cmd');
+      }
+    }
+  });
+
+  if (newlyMounted > 0) {
+    persistSave();
+    showPersistFlash(`Auto-mount root : ${mountedVolumes.size} volumes montés ✓`);
+  }
+}
+
 
 function updatePrompt() {
   const sigil = isRoot ? '#' : '$';
