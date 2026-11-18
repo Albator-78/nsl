@@ -1666,6 +1666,59 @@ const fileContents = {
   'documents/note_dr_talmage.txt': 'NOTE INTERNE - PROJET TALMAGE\n-----------------------------\nLes premiers tests sur l\'architecture mobile Qt ARM s\'annoncent concluants.\nVérifier l\'alignement des triggers symboliques du module de rendu visuel.',
   'documents/project_schema.svg': '<svg width="100" height="100"><circle cx="50" cy="50" r="40" stroke="cyan" stroke-width="3" fill="none" /></svg>\n[Rendu Vectoriel SVG Simulateur - OK]'
 };
+  /* ─── MONTAGE RÉEL DE L'APPAREIL (File System Access API) ─── */
+const realMounts = {}; // Associe '~/mnt/local' -> FileSystemDirectoryHandle
+
+async function mountDeviceDirectory(mountName = 'local') {
+  if (!window.showDirectoryPicker) {
+    appendLine('mount: votre navigateur ne supporte pas showDirectoryPicker() (utilisez Chrome, Edge ou Opera).', 'error');
+    return;
+  }
+
+  try {
+    appendLine('Sélectionnez le dossier de l’appareil à monter...', 'warn');
+    const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+
+    const mountPoint = `~/mnt/${mountName}`;
+    realMounts[mountPoint] = dirHandle;
+
+    // Rendre ~/mnt visible dans ~
+    if (!fileSystem['~'].includes('mnt')) fileSystem['~'].push('mnt');
+    if (!fileSystem['~/mnt']) fileSystem['~/mnt'] = [];
+    if (!fileSystem['~/mnt'].includes(mountName)) fileSystem['~/mnt'].push(mountName);
+
+    // Indexer les fichiers et sous-dossiers du dossier choisi
+    await scanRealDirectory(dirHandle, mountPoint);
+
+    appendLine(`[MOUNT] Appareil "${dirHandle.name}" monté sur ${mountPoint}`, 'cmd');
+    showPersistFlash(`Dossier "${dirHandle.name}" monté ✓`);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      appendLine('mount: sélection annulée par l’utilisateur.', 'dim');
+    } else {
+      appendLine(`mount: erreur d'accès (${err.message})`, 'error');
+    }
+  }
+}
+
+async function scanRealDirectory(dirHandle, virtualPath) {
+  fileSystem[virtualPath] = [];
+  const relPrefix = virtualPath.replace(/^~\//, '');
+
+  for await (const [name, handle] of dirHandle.entries()) {
+    fileSystem[virtualPath].push(name);
+    const childVirtualPath = `${virtualPath}/${name}`;
+    const childRelPath = `${relPrefix}/${name}`;
+
+    if (handle.kind === 'directory') {
+      await scanRealDirectory(handle, childVirtualPath);
+    } else if (handle.kind === 'file') {
+      // Stocker le handle réel pour lecture à la volée avec `cat`
+      realMounts[childRelPath] = handle;
+    }
+  }
+}
+
   /* ─── SYSTÈME DE MONTAGE AUTOMATIQUE (ROOT) ─── */
 const mountedVolumes = new Set();
 
