@@ -1518,6 +1518,21 @@ const ACCOUNTS = {
 function doLogin() {
   const u = userInput.value.trim() || 'guest';
   const p = passInput.value;
+  updatePrompt();
+
+  // Réinitialiser les montages si on passe sur un compte non-root
+  if (!isRoot) {
+    mountedVolumes.clear();
+    fileSystem['~'] = fileSystem['~'].filter(dir => dir !== 'mnt');
+  }
+
+  setTimeout(() => {
+    showScene('desktop');
+    if (isRoot) {
+      appendLine('⚡ [ROOT AUTO-MOUNT] Montage automatique des volumes système...', 'warn');
+      autoMountAll(false);
+    }
+  }, 800);
 
   // Vérification des credentials
   if (ACCOUNTS.hasOwnProperty(u)) {
