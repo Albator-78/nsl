@@ -1,0 +1,2492 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>TALMAGE SDE — NetSchuss Lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="TALMAGE SDE NetSchuss Lab — Solaris Derivated Edition Secure Access Manager">
+<meta name="theme-color" content="#05070b">
+
+<style>
+/* ─── TOKENS & PALETTE ───────────────────────────── */
+:root {
+  --bg:          #05070b;
+  --bg-deep:     #020405;
+  --bg-splash:   #071019;
+  --cyan:        #7cefff;
+  --cyan-dim:    rgba(124,239,255,0.18);
+  --cyan-glow:   rgba(124,239,255,0.55);
+  --cyan-soft:   rgba(124,239,255,0.25);
+  --gold:        #ffe08a;
+  --gold-dim:    rgba(255,224,138,0.12);
+  --gold-soft:   rgba(255,224,138,0.25);
+  --panel-dark:  #10171e;
+  --panel-darker:#091015;
+  --panel-black: #050a10;
+  --text-main:   #dbe6ea;
+  --text-soft:   #8ea7ad;
+  --border:      rgba(124,239,255,0.28);
+  --border-gold: rgba(255,224,138,0.55);
+  --green:       #7cffb2;
+  --green-dim:   rgba(124,255,178,0.08);
+  --blue:        #1f6cff;
+  --danger:      #cb7676;
+  --mono:        "Lucida Sans Typewriter","Courier New",monospace;
+}
+
+/* ─── RESET ──────────────────────────────────────── */
+*, *::before, *::after { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+}
+
+body {
+  font-family: var(--mono);
+  background: #000;
+  color: var(--text-main);
+  overflow: hidden;
+  height: 100dvh;
+  user-select: none;
+}
+
+/* ─── RETRO EFFECTS Overlay ──────────────────────── */
+.scanlines {
+  position: fixed; 
+  inset: 0; 
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,.03) 2px,
+    rgba(255,255,255,.03) 4px
+  );
+  opacity: 0.18;
+  z-index: 9999;
+}
+
+.halo {
+  position: fixed; 
+  inset: 0; 
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 42%, rgba(120,238,255,.08), transparent 45%);
+  z-index: 9998;
+}
+
+/* ─── SCENE SYSTEM ───────────────────────────────── */
+.scene {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.8s ease;
+}
+.scene.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ══════════════════════════════════════════════════
+   SCENE 1 — BOOT
+══════════════════════════════════════════════════ */
+.scene-boot {
+  background: #000;
+  align-items: flex-start;
+  padding: clamp(16px, 4vw, 40px);
+}
+
+.boot-wrap {
+  width: min(900px, 100%);
+  margin-top: clamp(30px, 8vh, 80px);
+}
+
+.boot-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(124,255,178,0.2);
+  padding-bottom: 10px;
+}
+
+.boot-header-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 10px var(--green);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.5; transform:scale(0.8); }
+}
+
+.boot-header-label {
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.boot-terminal {
+  background: linear-gradient(135deg, rgba(124,255,178,0.06) 0%, transparent 50%), #020403;
+  border: 1px solid rgba(124,255,178,0.25);
+  border-radius: 4px;
+  padding: clamp(14px, 2.5vw, 24px);
+  box-shadow:
+    0 0 40px rgba(0,0,0,0.9),
+    inset 0 1px 0 rgba(124,255,178,0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.boot-terminal::before,
+.boot-terminal::after {
+  content: "";
+  position: absolute;
+  width: 16px; height: 16px;
+  border-color: rgba(124,255,178,0.4);
+  border-style: solid;
+}
+.boot-terminal::before { top:4px; left:4px; border-width: 2px 0 0 2px; }
+.boot-terminal::after  { bottom:4px; right:4px; border-width: 0 2px 2px 0; }
+
+.boot-line {
+  font-size: clamp(11px, 1.4vw, 13px);
+  color: var(--green);
+  line-height: 1.7;
+  white-space: pre;
+  overflow: hidden;
+  width: 0;
+  opacity: 0;
+  animation: typeLine 0.6s steps(60,end) forwards;
+}
+
+.boot-line:nth-child(1)  { animation-delay: 0.1s; }
+.boot-line:nth-child(2)  { animation-delay: 0.55s; }
+.boot-line:nth-child(3)  { animation-delay: 1.0s; }
+.boot-line:nth-child(4)  { animation-delay: 1.45s; }
+.boot-line:nth-child(5)  { animation-delay: 1.9s; }
+.boot-line:nth-child(6)  { animation-delay: 2.3s; }
+.boot-line:nth-child(7)  { animation-delay: 2.7s; }
+.boot-line:nth-child(8)  { animation-delay: 3.0s; }
+
+@keyframes typeLine {
+  from { width:0; opacity:1; }
+  to   { width:100%; opacity:1; }
+}
+
+.boot-line.dim  { color: rgba(124,255,178,0.45); }
+.boot-line.ok   { color: var(--cyan); }
+.boot-line.warn { color: var(--gold); }
+
+.boot-logo {
+  margin-top: 24px;
+  text-align: center;
+  font-size: clamp(18px, 3.5vw, 28px);
+  letter-spacing: 0.28em;
+  color: var(--cyan);
+  text-shadow: 0 0 18px var(--cyan-glow);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fadeUp 1s ease forwards;
+  animation-delay: 3.3s;
+}
+
+.boot-version {
+  text-align: center;
+  font-size: 11px;
+  color: rgba(124,239,255,0.4);
+  letter-spacing: 0.2em;
+  margin-top: 6px;
+  opacity: 0;
+  animation: fadeUp 1s ease forwards;
+  animation-delay: 3.5s;
+}
+
+@keyframes fadeUp {
+  to { opacity:1; transform:translateY(0); }
+}
+
+/* ══════════════════════════════════════════════════
+   SCENE 2 — SPLASH
+══════════════════════════════════════════════════ */
+.scene-splash {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(124,239,255,0.14), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(255,224,138,0.10), transparent 60%),
+    radial-gradient(ellipse at center, #071019, #020509 75%);
+}
+
+.splash-core {
+  text-align: center;
+  padding: 24px;
+  width: min(640px, 100%);
+}
+
+.splash-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.splash-logo {
+  font-size: clamp(28px, 6vw, 48px);
+  letter-spacing: 0.22em;
+  color: var(--cyan);
+  text-shadow: 0 0 24px var(--cyan-glow);
+  margin-bottom: 6px;
+}
+
+.splash-tagline {
+  font-size: clamp(11px, 1.5vw, 13px);
+  color: var(--text-soft);
+  margin-bottom: 36px;
+  letter-spacing: 0.06em;
+}
+
+.splash-orbit {
+  width: clamp(200px, 40vw, 280px);
+  height: clamp(200px, 40vw, 280px);
+  margin: 0 auto 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(124,239,255,0.30);
+  box-shadow:
+    0 0 40px rgba(124,239,255,0.20),
+    0 0 80px rgba(124,239,255,0.08),
+    inset 0 0 30px rgba(5,10,16,0.95);
+  position: relative;
+  background: radial-gradient(circle at center, rgba(124,239,255,0.08), transparent 60%);
+}
+
+.splash-orbit::before {
+  content:"";
+  position:absolute;
+  inset: 24%;
+  border-radius:50%;
+  border: 1px solid rgba(255,224,138,0.15);
+}
+
+.splash-orbit::after {
+  content:"";
+  position:absolute;
+  top:50%; left:50%;
+  transform: translate(-50%,-50%);
+  width:10px; height:10px;
+  border-radius:50%;
+  background: var(--cyan);
+  box-shadow: 0 0 16px var(--cyan-glow);
+}
+
+.splash-node {
+  position: absolute;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 10px rgba(124,239,255,0.9);
+  top: 50%;
+  left: 50%;
+  transform-origin: -106px 0;
+  margin-top: -3.5px;
+  animation: orbitNode 7s linear infinite;
+}
+.splash-node:nth-child(2) { animation-delay:-2.33s; background:var(--gold); box-shadow:0 0 10px rgba(255,224,138,0.9); }
+.splash-node:nth-child(3) { animation-delay:-4.66s; }
+
+@keyframes orbitNode {
+  from { transform: rotate(0deg) translateX(-106px); }
+  to   { transform: rotate(360deg) translateX(-106px); }
+}
+
+.splash-status {
+  font-size: 11px;
+  color: var(--text-soft);
+  margin-bottom: 8px;
+  letter-spacing: 0.08em;
+  min-height: 16px;
+}
+
+.splash-bar-wrap {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(10,20,30,0.9);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.splash-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(255,224,138,0.7), var(--cyan));
+  border-radius: 999px;
+}
+
+.splash-pct {
+  font-size: 11px;
+  color: var(--cyan);
+  text-align: right;
+  letter-spacing: 0.1em;
+}
+
+/* ══════════════════════════════════════════════════
+   SCENE 3 — LOGIN
+══════════════════════════════════════════════════ */
+.scene-login {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(124,239,255,0.10), transparent 60%),
+    linear-gradient(180deg, #10171e 0%, #050a10 100%);
+  padding: 16px;
+}
+
+.login-shell {
+  width: min(400px, 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(92,135,150,0.55);
+  background: linear-gradient(180deg, rgba(18,24,32,0.97), rgba(8,12,18,0.99));
+  box-shadow:
+    0 24px 56px rgba(0,0,0,0.75),
+    0 0 0 1px rgba(255,255,255,0.03),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+  padding: 24px 24px 20px;
+  animation: loginAppear 0.5s ease both;
+}
+
+@keyframes loginAppear {
+  from { opacity:0; transform:translateY(12px) scale(0.98); }
+  to   { opacity:1; transform:translateY(0) scale(1); }
+}
+
+.login-logo-area {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.login-badge {
+  width: 52px; height: 52px;
+  margin: 0 auto 12px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-badge svg {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+}
+
+.login-badge-letter {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--cyan);
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 0 12px var(--cyan-glow);
+}
+
+.login-title-main {
+  font-size: 22px;
+  letter-spacing: 0.2em;
+  color: var(--cyan);
+  margin-bottom: 3px;
+}
+
+.login-title-sub {
+  font-size: 10px;
+  color: var(--text-soft);
+  letter-spacing: 0.08em;
+}
+
+.login-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 16px 0;
+}
+
+.login-form-title {
+  text-align: center;
+  font-size: 12px;
+  color: var(--gold);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.login-field {
+  margin-bottom: 12px;
+}
+
+.login-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.login-label span {
+  color: var(--text-soft);
+  font-size: 9px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.login-input-wrap {
+  position: relative;
+}
+
+.login-input-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-soft);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.login-input {
+  width: 100%;
+  height: 38px;
+  border-radius: 5px;
+  border: 1px solid rgba(92,135,150,0.5);
+  background: linear-gradient(180deg, #08101a, #040810);
+  color: var(--text-main);
+  padding: 0 10px 0 30px;
+  font-family: var(--mono);
+  font-size: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(255,224,138,0.10);
+}
+
+.login-btn {
+  width: 100%;
+  height: 38px;
+  margin-top: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,224,138,0.7);
+  background: linear-gradient(180deg, #d4ae50, #9c7828);
+  color: #0a0f14;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: var(--mono);
+  box-shadow:
+    0 6px 16px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.22);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-btn::before {
+  content:"";
+  position: absolute;
+  inset:0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.35s ease;
+}
+
+.login-btn:hover { filter:brightness(1.08); transform:translateY(-1px); box-shadow:0 10px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.22); }
+.login-btn:hover::before { transform: translateX(100%); }
+.login-btn:active { transform:translateY(0); filter:brightness(0.95); }
+
+.login-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
+.login-links a {
+  color: var(--text-soft);
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.login-links a:hover { color: var(--cyan); }
+
+.login-status {
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-soft);
+  background: rgba(0,0,0,0.3);
+  border-radius: 4px;
+  padding: 6px 8px;
+  border: 1px solid rgba(124,239,255,0.10);
+}
+
+.led {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.led-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  animation: ledPulse 2s ease-in-out infinite;
+}
+
+.led-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.led-dot.amber { background: var(--gold);  box-shadow: 0 0 6px var(--gold);  }
+.led-dot.red   { background: var(--danger);box-shadow: 0 0 6px var(--danger);}
+
+@keyframes ledPulse {
+  0%,100% { opacity:1; }
+  50%     { opacity:0.55; }
+}
+
+/* ══════════════════════════════════════════════════
+   SCENE 4 — DESKTOP
+══════════════════════════════════════════════════ */
+.scene-desktop {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%,  rgba(124,239,255,0.10), transparent 55%),
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(255,224,138,0.07), transparent 55%),
+    #020509;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+}
+
+.desktop-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.desktop-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(124,239,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,239,255,0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+}
+
+/* Topbar */
+.dt-topbar {
+  position: relative;
+  z-index: 10;
+  height: 30px;
+  background: linear-gradient(180deg, #18222e, #0d1520);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.dt-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-soft);
+}
+
+.dt-topbar-brand {
+  color: var(--cyan);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.dt-topbar-sep {
+  color: rgba(124,239,255,0.25);
+}
+
+.dt-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-soft);
+}
+
+.dt-metric {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dt-metric-val {
+  color: var(--cyan);
+}
+
+.dt-clock {
+  color: var(--gold);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+/* Main desktop area */
+.dt-body {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Window */
+.dt-window {
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse at top left, rgba(124,239,255,0.08), transparent 50%),
+    rgba(4,8,14,0.97);
+  box-shadow:
+    0 20px 40px rgba(0,0,0,0.8),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+  animation: winIn 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+
+.dt-window:nth-child(1) { flex:1.4; animation-delay:0.15s; }
+.dt-window:nth-child(2) { flex:1;   animation-delay:0.3s; }
+.dt-window:nth-child(3) { flex:0.9; animation-delay:0.45s; }
+
+@keyframes winIn {
+  to { opacity:1; transform:translateY(0) scale(1); }
+}
+
+.dt-win-bar {
+  height: 24px;
+  background: linear-gradient(180deg, #1b2936, #101820);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-size: 10px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+.dt-win-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.dt-win-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+}
+.dt-win-dot.r { background:var(--danger); box-shadow:0 0 5px var(--danger); }
+.dt-win-dot.a { background:var(--gold);   box-shadow:0 0 5px var(--gold); }
+.dt-win-dot.g { background:var(--green);  box-shadow:0 0 5px var(--green); }
+
+.dt-win-title { letter-spacing:0.06em; }
+
+.dt-win-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* INTERACTIVE TERMINAL SPECIFIC STYLES */
+.terminal-history {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.term-line {
+  color: var(--green);
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.term-line.dim    { color:rgba(124,255,178,0.4); }
+.term-line.cmd    { color:var(--cyan); }
+.term-line.prompt { color:var(--gold); }
+.term-line.error  { color:var(--danger); }
+.term-line.warn   { color:var(--gold); }
+
+.terminal-input-row {
+  display: flex;
+  align-items: center;
+  color: var(--gold);
+}
+
+.terminal-input-row label {
+  white-space: pre;
+}
+
+.terminal-hidden-input {
+  background: transparent;
+  border: none;
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 11px;
+  flex: 1;
+  outline: none;
+  padding: 0;
+  margin: 0;
+}
+
+.term-cursor {
+  display: inline-block;
+  width: 6px; height: 11px;
+  background: var(--green);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: blink 0.9s steps(1) infinite;
+}
+
+@keyframes blink {
+  0%,49% { opacity:1; }
+  50%,100% { opacity:0; }
+}
+
+/* Metrics window */
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(124,239,255,0.07);
+}
+.metric-row:last-child   { border-bottom:none; }
+
+.metric-key  { color:var(--text-soft); font-size:10px; }
+.metric-val  { color:var(--cyan); font-size:11px; }
+.metric-val.ok   { color:var(--green); }
+.metric-val.warn { color:var(--gold); }
+
+.mini-bar-wrap {
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(124,239,255,0.10);
+  margin-top: 2px;
+  overflow: hidden;
+}
+.mini-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cyan);
+}
+
+/* Session window */
+.sess-header {
+  font-size: 10px;
+  color: var(--gold);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-gold);
+}
+
+.sess-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,224,138,0.07);
+}
+.sess-row:last-child { border-bottom:none; }
+
+.sess-key { font-size:9px; color:var(--text-soft); letter-spacing:0.1em; text-transform:uppercase; }
+.sess-val { font-size:11px; color:var(--text-main); }
+.sess-val.hi { color:var(--cyan); }
+
+/* Taskbar */
+.dt-taskbar {
+  position: relative;
+  z-index: 10;
+  height: 28px;
+  background: linear-gradient(180deg, #0d1520, #080f18);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+.dt-task-app {
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 10px;
+  cursor: default;
+  transition: color 0.2s, border-color 0.2s;
+}
+.dt-task-app:hover { color:var(--cyan); border-color:var(--cyan); }
+.dt-task-app.active-win { color:var(--cyan); border-color:var(--cyan); background:rgba(124,239,255,0.06); }
+
+.dt-taskbar-spacer { flex:1; }
+
+.dt-notify {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(124,255,178,0.2);
+  color: var(--green);
+  font-size: 10px;
+}
+
+/* ─── RESPONSIVE ─────────────────────────────────── */
+@media (max-width: 680px) {
+  .dt-body { flex-direction:column; }
+  .dt-window:nth-child(3) { display:none; }
+  .dt-topbar-right .dt-metric:nth-child(2),
+  .dt-topbar-right .dt-metric:nth-child(3) { display:none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration:0.01ms !important; }
+}
+
+/* ─── PANNEAU COMPLÉTION TAB ─────────────────────── */
+.tab-completion-panel {
+  margin-top: 10px;
+  border-top: 1px solid rgba(124,239,255,0.12);
+  padding-top: 8px;
+}
+
+.tab-completion-title {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-completion-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(124,239,255,0.10);
+}
+
+.tab-key-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  border: 1px solid rgba(124,239,255,0.35);
+  background: rgba(124,239,255,0.06);
+  color: var(--cyan);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  margin-bottom: 6px;
+  align-self: flex-start;
+}
+.tab-key-hint:hover {
+  background: rgba(124,239,255,0.14);
+  box-shadow: 0 0 8px rgba(124,239,255,0.25);
+}
+.tab-key-hint:active { transform: scale(0.95); }
+
+.tab-context-line {
+  font-size: 10px;
+  color: var(--text-soft);
+  margin-bottom: 6px;
+  min-height: 14px;
+  font-style: italic;
+}
+
+.tab-context-line .tab-highlight {
+  color: var(--gold);
+  font-style: normal;
+  font-weight: bold;
+}
+
+.tab-candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 20px;
+}
+
+.tab-candidate {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  border: 1px solid transparent;
+}
+
+.tab-candidate.cmd-type {
+  color: var(--green);
+  border-color: rgba(124,255,178,0.25);
+  background: rgba(124,255,178,0.05);
+}
+.tab-candidate.cmd-type:hover {
+  background: rgba(124,255,178,0.16);
+  box-shadow: 0 0 6px rgba(124,255,178,0.25);
+}
+
+.tab-candidate.file-type {
+  color: var(--cyan);
+  border-color: rgba(124,239,255,0.22);
+  background: rgba(124,239,255,0.04);
+}
+.tab-candidate.file-type:hover {
+  background: rgba(124,239,255,0.14);
+  box-shadow: 0 0 6px rgba(124,239,255,0.22);
+}
+
+.tab-candidate.dir-type {
+  color: var(--gold);
+  border-color: rgba(255,224,138,0.30);
+  background: rgba(255,224,138,0.05);
+}
+.tab-candidate.dir-type:hover {
+  background: rgba(255,224,138,0.14);
+  box-shadow: 0 0 6px rgba(255,224,138,0.25);
+}
+
+.tab-candidate.active-match {
+  outline: 1px solid var(--cyan);
+  box-shadow: 0 0 8px rgba(124,239,255,0.35);
+}
+
+.tab-no-match {
+  font-size: 10px;
+  color: var(--danger);
+  font-style: italic;
+}
+
+/* ─── BOUTON ACQUITTER (TOP MODE) ────────────────── */
+.btn-acquitter {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 3px;
+  border: 1px solid rgba(203,118,118,0.7);
+  background: rgba(203,118,118,0.12);
+  color: var(--danger);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s, color 0.18s;
+  box-shadow: 0 0 6px rgba(203,118,118,0.18);
+  animation: acquitterPulse 1.8s ease-in-out infinite;
+}
+.btn-acquitter.visible {
+  display: flex;
+}
+.btn-acquitter:hover {
+  background: rgba(203,118,118,0.26);
+  box-shadow: 0 0 12px rgba(203,118,118,0.45);
+  color: #e89a9a;
+}
+.btn-acquitter:active {
+  transform: scale(0.96);
+}
+.btn-acquitter-key {
+  display: inline-block;
+  background: rgba(203,118,118,0.22);
+  border: 1px solid rgba(203,118,118,0.55);
+  border-radius: 2px;
+  padding: 0 4px;
+  font-size: 9px;
+  line-height: 14px;
+  color: #e89a9a;
+}
+@keyframes acquitterPulse {
+  0%,100% { box-shadow: 0 0 6px rgba(203,118,118,0.18); }
+  50%      { box-shadow: 0 0 14px rgba(203,118,118,0.50); }
+}
+
+/* ─── ROOT MODE INDICATOR ─────────────────────── */
+.root-mode .terminal-hidden-input { color: var(--danger); }
+.root-mode .term-line.prompt { color: var(--danger); }
+.topbar-root-badge {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  border: 1px solid rgba(203,118,118,0.7);
+  background: rgba(203,118,118,0.14);
+  color: var(--danger);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  animation: acquitterPulse 2s ease-in-out infinite;
+}
+.topbar-root-badge.visible { display: flex; }
+
+/* ─── SAVE FILE BUTTON ────────────────────────── */
+.dt-task-save {
+  padding: 2px 10px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,224,138,0.55);
+  background: rgba(255,224,138,0.08);
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  letter-spacing: 0.10em;
+  transition: background 0.18s, box-shadow 0.18s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.dt-task-save:hover {
+  background: rgba(255,224,138,0.20);
+  box-shadow: 0 0 10px rgba(255,224,138,0.30);
+}
+.dt-task-save:active { transform: scale(0.96); }
+
+/* ─── PERSISTENCE NOTIFY ──────────────────────── */
+.persist-flash {
+  position: fixed;
+  bottom: 40px;
+  right: 16px;
+  background: rgba(124,255,178,0.12);
+  border: 1px solid rgba(124,255,178,0.45);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+.persist-flash.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+<div class="halo"></div>
+
+<section class="scene scene-boot active" id="scene-boot">
+  <div class="boot-wrap">
+    <div class="boot-header">
+      <div class="boot-header-dot"></div>
+      <div class="boot-header-label">SDE Kernel Boot Sequence</div>
+    </div>
+    <div class="boot-terminal">
+      <div class="boot-line">TALMAGE SDE NetSchuss Lab  —  v4.2.1-stable</div>
+      <div class="boot-line dim">Copyright (c) 2024 NetSchuss Systems. All rights reserved.</div>
+      <div class="boot-line">Initializing Solaris Derivated Kernel [SDE-CORE/4.2]...</div>
+      <div class="boot-line ok">  [  OK  ] Memory subsystem: 32768 MB mapped</div>
+      <div class="boot-line ok">  [  OK  ] Network interface: talmage.cnl @ 10.0.0.1</div>
+      <div class="boot-line ok">  [  OK  ] Security modules: CryptoLayer-7 nominal</div>
+      <div class="boot-line warn">  [ WAIT ] Loading workspace SDE-01...</div>
+      <div class="boot-line ok">  [  OK  ] Graphical login manager: ready</div>
+      <div class="boot-logo">✦ TALMAGE SDE ✦</div>
+      <div class="boot-version">SOLARIS DERIVATED EDITION  ·  NETSCHUSS LAB</div>
+    </div>
+  </div>
+</section>
+
+<section class="scene scene-splash" id="scene-splash">
+  <div class="splash-core">
+    <div class="splash-eyebrow">NetSchuss Lab · Secure Access</div>
+    <div class="splash-logo">TALMAGE SDE</div>
+    <div class="splash-tagline">Solaris Derivated Edition &nbsp;·&nbsp; Workspace SDE‑01</div>
+
+    <div class="splash-orbit">
+      <div class="splash-node"></div>
+      <div class="splash-node"></div>
+      <div class="splash-node"></div>
+    </div>
+
+    <div class="splash-status" id="splash-status-txt">Initialisation du workspace…</div>
+    <div class="splash-bar-wrap">
+      <div class="splash-bar-fill" id="splash-bar"></div>
+    </div>
+    <div class="splash-pct" id="splash-pct">0%</div>
+  </div>
+</section>
+
+<section class="scene scene-login" id="scene-login">
+  <div class="login-shell">
+    <div class="login-logo-area">
+      <div class="login-badge">
+        <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="26,2 50,15 50,37 26,50 2,37 2,15"
+            stroke="rgba(124,239,255,0.55)" stroke-width="1" fill="rgba(124,239,255,0.04)"/>
+          <polygon points="26,8 44,18 44,34 26,44 8,34 8,18"
+            stroke="rgba(124,239,255,0.20)" stroke-width="0.5" fill="none"/>
+        </svg>
+        <span class="login-badge-letter">T</span>
+      </div>
+      <div class="login-title-main">TALMAGE SDE</div>
+      <div class="login-title-sub">NetSchuss Lab &nbsp;·&nbsp; Authentification station de travail</div>
+    </div>
+
+    <div class="login-divider"></div>
+    <div class="login-form-title">Connexion</div>
+
+    <div class="login-field">
+      <label class="login-label" for="user">Nom d'utilisateur <span>requis</span></label>
+      <div class="login-input-wrap">
+        <span class="login-input-icon">⬡</span>
+        <input id="user" class="login-input" type="text" value="guest" autocomplete="username" spellcheck="false">
+      </div>
+    </div>
+
+    <div class="login-field">
+      <label class="login-label" for="pass">Mot de passe <span>requis</span></label>
+      <div class="login-input-wrap">
+        <span class="login-input-icon">◈</span>
+        <input id="pass" class="login-input" type="password" placeholder="••••••••••••" autocomplete="current-password">
+      </div>
+    </div>
+
+    <button class="login-btn" id="login-btn">Se connecter</button>
+
+    <div class="login-links">
+      <a tabindex="0">Mot de passe oublié ?</a>
+      <a tabindex="0">Support technique</a>
+    </div>
+
+    <div class="login-status">
+      <div class="led"><span class="led-dot green"></span><span>Security: Nominal</span></div>
+      <div class="led"><span class="led-dot green"></span><span>Workspace: SDE‑01</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="scene scene-desktop" id="scene-desktop">
+  <div class="desktop-root">
+    <div class="desktop-grid-bg"></div>
+
+    <div class="dt-topbar">
+      <div class="dt-topbar-left">
+        <span class="dt-topbar-brand">✦ TALMAGE SDE</span>
+        <span class="dt-topbar-sep">|</span>
+        <span>Solaris Derivated Workspace</span>
+        <span class="dt-topbar-sep">|</span>
+        <span id="topbar-user-tag">guest@sde‑01</span>
+      </div>
+      <div class="dt-topbar-right">
+        <div class="topbar-root-badge" id="root-badge">⚡ ROOT</div>
+        <div class="dt-metric">CPU <span class="dt-metric-val" id="cpu-val">12%</span></div>
+        <div class="dt-metric">NET <span class="dt-metric-val">1.2Gb/s</span></div>
+        <div class="dt-metric">SEC <span class="dt-metric-val" style="color:var(--green)">●&nbsp;Nominal</span></div>
+        <div class="dt-clock" id="dt-clock">--:--:--</div>
+      </div>
+    </div>
+
+    <div class="dt-body">
+      <div class="dt-window" id="terminal-window" style="cursor: text;">
+        <div class="dt-win-bar">
+          <div class="dt-win-dots">
+            <span class="dt-win-dot r"></span>
+            <span class="dt-win-dot a"></span>
+            <span class="dt-win-dot g"></span>
+          </div>
+          <span class="dt-win-title" id="terminal-title">/usr/dt/config/Xlogin — guest@sde01</span>
+          <button class="btn-acquitter" id="btn-acquitter" onclick="quitTopMode()" title="Quitter top (touche Q)">
+            ACQUITTER <span class="btn-acquitter-key">Q</span>
+          </button>
+        </div>
+        <div class="dt-win-body" id="terminal-scroll-area">
+          <div class="terminal-history" id="terminal-history">
+            <div class="term-line dim">Last login: today on tty1</div>
+            <div class="term-line">Welcome to TALMAGE SDE Shell. Type 'help' for available commands.</div>
+          </div>
+          <div class="terminal-input-row" id="terminal-input-row">
+            <label for="term-input" id="terminal-prompt">guest@sde01:~$ </label>
+            <input type="text" id="term-input" class="terminal-hidden-input" autofocus autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          </div>
+        </div>
+      </div>
+
+      <div class="dt-window">
+        <div class="dt-win-bar">
+          <div class="dt-win-dots"><span class="dt-win-dot g"></span></div>
+          <span class="dt-win-title">System Monitor · SDE‑01</span>
+          <span></span>
+        </div>
+        <div class="dt-win-body">
+          <div class="metric-row">
+            <span class="metric-key">CPU Load</span>
+            <div>
+              <span class="metric-val ok" id="m-cpu">12%</span>
+              <div class="mini-bar-wrap"><div class="mini-bar-fill" id="bar-cpu" style="width:12%;background:var(--green)"></div></div>
+            </div>
+          </div>
+          <div class="metric-row">
+            <span class="metric-key">Memory</span>
+            <div>
+              <span class="metric-val warn">3.2 / 32 GB</span>
+              <div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:10%;background:var(--gold)"></div></div>
+            </div>
+          </div>
+          <div class="metric-row">
+            <span class="metric-key">Network I/O</span>
+            <span class="metric-val">↑ 420 KB/s  ↓ 1.2 Gb/s</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-key">Disk /</span>
+            <div>
+              <span class="metric-val">128 / 512 GB</span>
+              <div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:25%"></div></div>
+            </div>
+          </div>
+          <div class="metric-row">
+            <span class="metric-key">Temperature</span>
+            <span class="metric-val ok">42°C</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-key">Security</span>
+            <span class="metric-val ok">CryptoLayer‑7 ● Active</span>
+          </div>
+
+          <!-- ─── PANNEAU COMPLÉTION TAB ─── -->
+          <div class="tab-completion-panel">
+            <div class="tab-completion-title">Complétion</div>
+            <button class="tab-key-hint" id="tab-key-btn" title="Complétion automatique (Tab)">
+              ⇥ TAB
+            </button>
+            <div class="tab-context-line" id="tab-context">En attente de saisie…</div>
+            <div class="tab-candidates" id="tab-candidates"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dt-window">
+        <div class="dt-win-bar">
+          <div class="dt-win-dots"><span class="dt-win-dot g"></span></div>
+          <span class="dt-win-title">Session · SDE‑01</span>
+          <span></span>
+        </div>
+        <div class="dt-win-body">
+          <div class="sess-header">Informations de session</div>
+          <div class="sess-row">
+            <span class="sess-key">Utilisateur</span>
+            <span class="sess-val hi" id="sess-user">guest</span>
+          </div>
+          <div class="sess-row">
+            <span class="sess-key">Hôte</span>
+            <span class="sess-val">talmage.cnl</span>
+          </div>
+          <div class="sess-row">
+            <span class="sess-key">Domaine</span>
+            <span class="sess-val">sde.netschuss.lab</span>
+          </div>
+          <div class="sess-row">
+            <span class="sess-key">Mode</span>
+            <span class="sess-val">graphical login</span>
+          </div>
+          <div class="sess-row">
+            <span class="sess-key">Locale</span>
+            <span class="sess-val">fr_FR.UTF‑8</span>
+          </div>
+          <div class="sess-row">
+            <span class="sess-key">Workspace</span>
+            <span class="sess-val hi">SDE‑01</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dt-taskbar">
+      <div class="dt-task-app active-win">Terminal</div>
+      <div class="dt-task-app">Monitor</div>
+      <div class="dt-task-app">Session</div>
+      <div class="dt-taskbar-spacer"></div>
+      <button class="dt-task-save" id="savefile-btn" title="Sauvegarder et télécharger le fichier HTML">
+        💾 save-file
+      </button>
+      <div class="dt-notify"><span class="led-dot green"></span>Système nominal</div>
+    </div>
+  </div>
+</section>
+<div class="persist-flash" id="persist-flash">Filesystem sauvegardé ✓</div>
+
+<script>
+/* ─── SCENE MANAGER ──────────────────────────── */
+const scenes = {
+  boot:    document.getElementById('scene-boot'),
+  splash:  document.getElementById('scene-splash'),
+  login:   document.getElementById('scene-login'),
+  desktop: document.getElementById('scene-desktop'),
+};
+
+function showScene(name) {
+  Object.values(scenes).forEach(s => s.classList.remove('active'));
+  scenes[name].classList.add('active');
+  if(name === 'desktop') {
+    setTimeout(() => { if(termInput) termInput.focus(); }, 200);
+  }
+}
+
+/* ─── SPLASH COUNTER ─────────────────────────── */
+const statusMessages = [
+  'Initialisation du workspace…',
+  'Chargement des modules de sécurité…',
+  'Connexion au réseau SDE‑01…',
+  'Démarrage de l\'interface graphique…',
+  'Workspace prêt.',
+];
+
+let pct = 0;
+const pctEl  = document.getElementById('splash-pct');
+const txtEl  = document.getElementById('splash-status-txt');
+const barEl  = document.getElementById('splash-bar');
+let msgIdx   = 0;
+
+function runSplash() {
+  const iv = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 4 + 1, 100);
+    if (pctEl) pctEl.textContent = Math.floor(pct) + '%';
+    if (barEl) barEl.style.width = Math.floor(pct) + '%';
+
+    const newIdx = Math.min(Math.floor(pct / 25), statusMessages.length - 1);
+    if (newIdx !== msgIdx && txtEl) {
+      msgIdx = newIdx;
+      txtEl.textContent = statusMessages[msgIdx];
+    }
+
+    if (pct >= 100) {
+      clearInterval(iv);
+      setTimeout(() => showScene('login'), 600);
+    }
+  }, 50);
+}
+
+/* ─── TIMELINE ANIMATION INITIALIZATION ──────── */
+setTimeout(() => { 
+  showScene('splash'); 
+  runSplash(); 
+}, 4500);
+
+/* ─── PERSISTENCE (IndexedDB) ─────────────────
+   localStorage non disponible dans les artifacts.
+   IndexedDB fonctionne partout (y compris Claude).
+   Fallback silencieux si IDB est bloqué.
+─────────────────────────────────────────────── */
+const IDB_NAME    = 'TalmageSDEv1';
+const IDB_STORE   = 'state';
+const IDB_VERSION = 1;
+
+let _idb = null;   // instance IDBDatabase en cache
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    if (_idb) { resolve(_idb); return; }
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
+    req.onerror   = e => reject(e);
+  });
+}
+
+function idbSet(key, value) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx  = db.transaction(IDB_STORE, 'readwrite');
+    const st  = tx.objectStore(IDB_STORE);
+    const req = st.put(value, key);
+    req.onsuccess = () => resolve();
+    req.onerror   = e => reject(e);
+  })).catch(() => {/* silencieux */});
+}
+
+function idbGet(key) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx  = db.transaction(IDB_STORE, 'readonly');
+    const st  = tx.objectStore(IDB_STORE);
+    const req = st.get(key);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e);
+  })).catch(() => null);
+}
+
+function showPersistFlash(msg) {
+  const el = document.getElementById('persist-flash');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+function persistSave() {
+  Promise.all([
+    idbSet('talmage_fs',      JSON.stringify(fileSystem)),
+    idbSet('talmage_fscont',  JSON.stringify(fileContents)),
+  ]).then(() => {
+    showPersistFlash('Filesystem sauvegardé ✓');
+  }).catch(() => {
+    showPersistFlash('Sauvegarde IDB indisponible (mémoire OK)');
+  });
+}
+
+function persistLoad() {
+  Promise.all([
+    idbGet('talmage_fs'),
+    idbGet('talmage_fscont'),
+  ]).then(([fs, fc]) => {
+    if (fs) { try { Object.assign(fileSystem,   JSON.parse(fs)); } catch(e){} }
+    if (fc) { try { Object.assign(fileContents, JSON.parse(fc)); } catch(e){} }
+  }).catch(() => {/* démarrage sans état persisté */});
+}
+
+// Charger le filesystem persisté au démarrage
+persistLoad();
+
+/* ─── SAVE-FILE BUTTON ───────────────────────── */
+const savefileBtn = document.getElementById('savefile-btn');
+if (savefileBtn) {
+  savefileBtn.addEventListener('click', () => {
+    // Sérialiser l'état courant du filesystem dans la page avant export
+    const htmlContent = document.documentElement.outerHTML;
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'save-file.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showPersistFlash('Téléchargement : save-file.html ✓');
+  });
+}
+
+/* ─── LOGIN PROCESS ──────────────────────────── */
+const loginBtn  = document.getElementById('login-btn');
+const userInput = document.getElementById('user');
+const passInput = document.getElementById('pass');
+let currentUser = 'guest';
+let isRoot = false;
+
+// Comptes autorisés : { user: password }
+const ACCOUNTS = {
+  'guest': '',          // guest sans mot de passe
+  'talmage': 'sde01',  // utilisateur standard
+  'root': 'toor',      // root access
+};
+
+function doLogin() {
+  const u = userInput.value.trim() || 'guest';
+  const p = passInput.value;
+
+  // Vérification des credentials
+  if (ACCOUNTS.hasOwnProperty(u)) {
+    if (ACCOUNTS[u] !== '' && ACCOUNTS[u] !== p) {
+      // Mauvais mot de passe : flash rouge sur le champ
+      passInput.style.borderColor = 'var(--danger)';
+      passInput.style.boxShadow   = '0 0 0 3px rgba(203,118,118,0.18)';
+      passInput.value = '';
+      passInput.placeholder = 'Mot de passe incorrect';
+      setTimeout(() => {
+        passInput.style.borderColor = '';
+        passInput.style.boxShadow   = '';
+        passInput.placeholder = '••••••••••••';
+      }, 1800);
+      loginBtn.textContent = 'Se connecter';
+      loginBtn.disabled = false;
+      return;
+    }
+  } else {
+    // Utilisateur inconnu
+    userInput.style.borderColor = 'var(--danger)';
+    setTimeout(() => { userInput.style.borderColor = ''; }, 1800);
+    loginBtn.textContent = 'Se connecter';
+    loginBtn.disabled = false;
+    return;
+  }
+
+  currentUser = u;
+  isRoot = (u === 'root');
+
+  loginBtn.textContent = 'Connexion…';
+  loginBtn.disabled = true;
+
+  document.getElementById('topbar-user-tag').textContent = `${currentUser}@sde‑01`;
+  document.getElementById('sess-user').textContent = currentUser;
+  document.getElementById('terminal-title').textContent = `/usr/dt/config/Xlogin — ${currentUser}@sde01`;
+
+  // Badge ROOT dans la topbar
+  const rootBadge = document.getElementById('root-badge');
+  if (rootBadge) {
+    if (isRoot) rootBadge.classList.add('visible');
+    else rootBadge.classList.remove('visible');
+  }
+
+  // Style danger sur le terminal si root
+  const termWin = document.getElementById('terminal-window');
+  if (termWin) {
+    if (isRoot) termWin.classList.add('root-mode');
+    else termWin.classList.remove('root-mode');
+  }
+
+  updatePrompt();
+  setTimeout(() => showScene('desktop'), 800);
+}
+
+if (loginBtn) loginBtn.addEventListener('click', doLogin);
+[userInput, passInput].forEach(el => {
+  if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+});
+
+/* ─── DESKTOP CLOCK ──────────────────────────── */
+function updateClock() {
+  const now = new Date();
+  const t = [now.getHours(), now.getMinutes(), now.getSeconds()]
+    .map(n => String(n).padStart(2,'0')).join(':');
+  const el = document.getElementById('dt-clock');
+  if (el) el.textContent = t;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+/* ─── LIVE CPU FLICKER ───────────────────────── */
+let globalCpuValue = "12%";
+setInterval(() => {
+  const randomCpu = (10 + Math.random() * 8).toFixed(0);
+  globalCpuValue = randomCpu + '%';
+  const c = document.getElementById('cpu-val');
+  const m = document.getElementById('m-cpu');
+  const b = document.getElementById('bar-cpu');
+  if (c) c.textContent = globalCpuValue;
+  if (m) m.textContent = globalCpuValue;
+  if (b) b.style.width = globalCpuValue;
+}, 2200);
+
+/* ─── INTERACTIVE SHELL ENGINE ───────────────── */
+const termWindow = document.getElementById('terminal-window');
+const termInput = document.getElementById('term-input');
+const termHistory = document.getElementById('terminal-history');
+const termScroll = document.getElementById('terminal-scroll-area');
+const termPromptLabel = document.getElementById('terminal-prompt');
+const termInputRow = document.getElementById('terminal-input-row');
+
+let currentDir = '~';
+let topInterval = null;
+let isTopActive = false;
+
+/* ─── POSIX SHELL STATE ───────────────────────── */
+// Paramètres positionnels $1 $2 … (POSIX shift)
+let positionalParams = [];
+
+// Table des jobs en arrière-plan (POSIX jobs / fg)
+// Structure: { id, pid, cmd, status: 'running'|'stopped'|'done' }
+let jobTable = [];
+let jobPidCounter = 1000;
+
+// Mode read interactif
+let readMode = false;
+let readVarName = '';
+let readPromptStr = '';
+// Variables shell stockées par `read`
+const shellVars = {};
+
+// Tableau persistant capturant tout l'historique tapé à l'écran
+const commandHistoryLog = [];
+
+// Système de fichiers étendu avec du vrai contenu lisible pour la commande 'cat'
+const fileSystem = {
+  '~': ['bin', 'config', 'documents', 'netschuss_lab.log'],
+  '~/bin': ['talmage_core', 'cryptolayer'],
+  '~/config': ['Xlogin', 'sde.conf', 'theme.properties'],
+  '~/documents': ['note_dr_talmage.txt', 'project_schema.svg']
+};
+
+const fileContents = {
+  'netschuss_lab.log': '[INFO] 2026-06-18: Security audit passed. No anomalies found on CryptoLayer-7.',
+  'bin/talmage_core': '[BINARY DATA] SDE Core orchestration micro-kernel v4.2.1.',
+  'bin/cryptolayer': '[BINARY DATA] Encrypted transport protocols operational.',
+  'config/Xlogin': '# Graphical Login Configuration\nDisplayManager.servers: local\nDisplayManager.errors: /var/log/xdm.log',
+  'config/sde.conf': '# Solaris Derivated Edition Core\nKERNEL_SECURITY_LEVEL=7\nNET_DOMAIN=sde.netschuss.lab',
+  'config/theme.properties': 'ui.theme=retro-cyan\nui.effects.scanlines=true\nui.effects.halo=true',
+  'documents/note_dr_talmage.txt': 'NOTE INTERNE - PROJET TALMAGE\n-----------------------------\nLes premiers tests sur l\'architecture mobile Qt ARM s\'annoncent concluants.\nVérifier l\'alignement des triggers symboliques du module de rendu visuel.',
+  'documents/project_schema.svg': '<svg width="100" height="100"><circle cx="50" cy="50" r="40" stroke="cyan" stroke-width="3" fill="none" /></svg>\n[Rendu Vectoriel SVG Simulateur - OK]'
+};
+
+function updatePrompt() {
+  const sigil = isRoot ? '#' : '$';
+  if (termPromptLabel) termPromptLabel.textContent = `${currentUser}@sde01:${currentDir}${sigil} `;
+}
+
+if (termWindow) {
+  termWindow.addEventListener('click', () => {
+    if (termInput) termInput.focus();
+  });
+}
+
+if (termInput) {
+  termInput.addEventListener('keydown', (e) => {
+    if (isTopActive) {
+      if (e.key.toLowerCase() === 'q') {
+        quitTopMode();
+      }
+      e.preventDefault();
+      return;
+    }
+
+    // Complétion TAB
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      doTabCycle();
+      return;
+    }
+
+    // Toute autre touche (hors Tab) réinitialise le cycle
+    if (e.key !== 'Tab') {
+      tabCycleList  = [];
+      tabCycleIndex = -1;
+      tabBaseValue  = '';
+    }
+
+    if (e.key === 'Enter') {
+      const rawInput = termInput.value;
+      const commandLine = rawInput.trim();
+      termInput.value = '';
+
+      /* ── Mode read POSIX : on capture la ligne comme valeur ── */
+      if (readMode) {
+        readMode = false;
+        // Stocker dans la variable shell
+        shellVars[readVarName] = rawInput;
+        // Afficher l'écho : prompt_affiché + valeur saisie
+        appendLine(`${readPromptStr}${rawInput}`, 'prompt');
+        appendLine(`→ ${readVarName}="${rawInput}"`, 'cmd');
+        // Restaurer le prompt shell normal
+        updatePrompt();
+        if (termScroll) termScroll.scrollTop = termScroll.scrollHeight;
+        return;
+      }
+
+      // On logue la ligne dans l'historique persistant globale
+      const _sig = isRoot ? '#' : '$';
+      commandHistoryLog.push(`${currentUser}@sde01:${currentDir}${_sig} ${rawInput}`);
+
+      appendLine(`${currentUser}@sde01:${currentDir}${_sig} ${rawInput}`, 'prompt');
+
+      if (commandLine !== '') {
+        handleCommand(commandLine);
+      }
+      
+      if (!isTopActive && termScroll) {
+        termScroll.scrollTop = termScroll.scrollHeight;
+      }
+    }
+  });
+}
+
+function appendLine(text, className = '') {
+  if (!termHistory) return;
+  const line = document.createElement('div');
+  line.className = `term-line ${className}`;
+  line.textContent = text;
+  termHistory.appendChild(line);
+}
+
+function handleCommand(cmdLine) {
+  const parts = cmdLine.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  switch(cmd) {
+    case 'help':
+      appendLine('Available SDE core utilities:', 'warn');
+      appendLine('  ls            List directory contents');
+      appendLine('  cd [dir]      Change working directory');
+      appendLine('  pwd           Print name of current/working directory');
+      appendLine('  cat [f]       Display file contents on screen');
+      appendLine('  echo [args]   Print text ($VAR $1..$N $# supported)');
+      appendLine('  grep PAT [f]  Search pattern in file (or history)');
+      appendLine('  mkdir [dir]   Create directory');
+      appendLine('  cp SRC DEST   Copy file');
+      appendLine('  mv SRC DEST   Move/rename file');
+      appendLine('  history       Display screen prompt command logs');
+      appendLine('  whoami        Print effective userid');
+      appendLine('  sudo CMD      Execute command as root');
+      appendLine('  top           Display Linux tasks / real-time system monitor');
+      appendLine('  clear         Clear the terminal screen');
+      appendLine('  uname         Print system information');
+      appendLine('  uptime        Display system uptime');
+      appendLine('── POSIX extensions ──────────────────────────', 'dim');
+      appendLine('  read [-p msg] VAR   Read a line into shell variable VAR');
+      appendLine('  echo $VAR / $1      Expand shell variables and positional params');
+      appendLine('  set [v1 v2 …]       Set positional parameters $1 $2 … / list vars');
+      appendLine('  shift [n]           Shift positional parameters left by n (default 1)');
+      appendLine('  obs [--status|--watch F|--log|--vars]  System observer');
+      appendLine('  CMD &               Run command in background (creates a job)');
+      appendLine('  jobs [-l]           List background jobs');
+      appendLine('  fg [%n]             Bring background job to foreground');
+      if (isRoot) appendLine('  ⚡ Mode ROOT actif — accès total au système.', 'warn');
+      break;
+
+    case 'ls':
+      const contents = fileSystem[currentDir] || [];
+      if (contents.length > 0) {
+        appendLine(contents.join('    '), 'cmd');
+      }
+      break;
+
+    case 'pwd':
+      let fullPath = currentDir === '~' ? `/home/${currentUser}` : `/home/${currentUser}/${currentDir.substring(2)}`;
+      appendLine(fullPath, 'cmd');
+      break;
+
+    case 'whoami':
+      appendLine(currentUser, 'cmd');
+      break;
+
+    case 'clear':
+      if (termHistory) termHistory.innerHTML = '';
+      break;
+
+    case 'uname':
+      appendLine('SDE 4.2.1-NETSCHUSS #1 SMP Thu Jun 18 15:00:00 CEST 2026 talmage.cnl Solaris-Derivated', 'cmd');
+      break;
+
+    case 'uptime':
+      appendLine(`15:14:12 up 3 days, 7:44, 1 user, load average: 0.12, 0.08, 0.05`, 'cmd');
+      break;
+
+    case 'top':
+      launchTopMode();
+      break;
+
+    // INTERACTION : AFFICHAGE DU FICHIER (COMMANDE Unix 'cat')
+    case 'cat':
+      const filename = args[0];
+      if (!filename) {
+        appendLine('cat: missing file operand', 'error');
+        break;
+      }
+      
+      // Reconstruction du chemin d'accès relatif propre
+      let lookupPath = '';
+      if (currentDir === '~') {
+        lookupPath = filename;
+      } else {
+        lookupPath = currentDir.substring(2) + '/' + filename;
+      }
+
+      // Nettoyage si l'utilisateur saisit le chemin complet depuis le root virtuel documents/fichier
+      if (filename.startsWith('documents/') || filename.startsWith('config/') || filename.startsWith('bin/')) {
+        lookupPath = filename;
+      }
+
+      if (fileContents[lookupPath] !== undefined) {
+        // Découpage et affichage ligne par ligne pour respecter la mise en forme
+        const lines = fileContents[lookupPath].split('\n');
+        lines.forEach(l => appendLine(l, 'cmd'));
+      } else {
+        appendLine(`cat: ${filename}: No such file or directory`, 'error');
+      }
+      break;
+
+    // INTERACTION : ENREGISTREMENT ET RAPPORT DES PROMPTS (COMMANDE Unix 'history')
+    case 'history':
+      if (commandHistoryLog.length === 0) {
+        appendLine('No commands in history.', 'dim');
+      } else {
+        commandHistoryLog.forEach((logEntry, index) => {
+          appendLine(`  ${index + 1}  ${logEntry}`, 'dim');
+        });
+      }
+      break;
+
+    case 'cd':
+      const target = args[0];
+      if (!target || target === '~') {
+        currentDir = '~';
+      } else if (target === '..') {
+        if (currentDir !== '~') {
+          const index = currentDir.lastIndexOf('/');
+          currentDir = index !== -1 ? currentDir.substring(0, index) : '~';
+        }
+      } else {
+        let checkPath = currentDir === '~' ? `~/${target}` : `${currentDir}/${target}`;
+        if (fileSystem[checkPath]) {
+          currentDir = checkPath;
+        } else if (fileSystem['~'].includes(target) && currentDir === '~') {
+          currentDir = `~/${target}`;
+        } else {
+          appendLine(`cd: no such file or directory: ${target}`, 'error');
+        }
+      }
+      updatePrompt();
+      break;
+
+    /* ── GREP ─────────────────────────────────── */
+    case 'grep': {
+      const pattern = args[0];
+      const target  = args[1];
+      if (!pattern) { appendLine('grep: usage: grep PATTERN [FILE]', 'error'); break; }
+      if (!target)  {
+        // Grep dans l'historique si pas de fichier
+        const rx = new RegExp(pattern, 'i');
+        let found = false;
+        commandHistoryLog.forEach(l => { if (rx.test(l)) { appendLine(l, 'cmd'); found = true; } });
+        if (!found) appendLine(`grep: no match for '${pattern}'`, 'dim');
+        break;
+      }
+      let lookupGrp = currentDir === '~' ? target : `${currentDir.substring(2)}/${target}`;
+      if (target.startsWith('documents/') || target.startsWith('config/') || target.startsWith('bin/')) lookupGrp = target;
+      const src = fileContents[lookupGrp];
+      if (src === undefined) { appendLine(`grep: ${target}: No such file or directory`, 'error'); break; }
+      const rx2 = new RegExp(pattern, 'i');
+      let hit = false;
+      src.split('\n').forEach(l => { if (rx2.test(l)) { appendLine(l, 'cmd'); hit = true; } });
+      if (!hit) appendLine(`grep: no match in ${target}`, 'dim');
+      break;
+    }
+
+    /* ── MKDIR ────────────────────────────────── */
+    case 'mkdir': {
+      const dirName = args[0];
+      if (!dirName) { appendLine('mkdir: missing operand', 'error'); break; }
+      // Interdit si pas root pour répertoires système
+      const newPath = currentDir === '~' ? `~/${dirName}` : `${currentDir}/${dirName}`;
+      if (fileSystem[newPath] !== undefined) {
+        appendLine(`mkdir: cannot create directory '${dirName}': File exists`, 'error');
+        break;
+      }
+      // Ajouter dans le répertoire parent
+      const parentLs = fileSystem[currentDir] || [];
+      if (!parentLs.includes(dirName)) parentLs.push(dirName);
+      fileSystem[currentDir] = parentLs;
+      fileSystem[newPath] = [];
+      persistSave();
+      break;
+    }
+
+    /* ── CP ───────────────────────────────────── */
+    case 'cp': {
+      const cpSrc  = args[0];
+      const cpDest = args[1];
+      if (!cpSrc || !cpDest) { appendLine('cp: usage: cp SOURCE DEST', 'error'); break; }
+
+      // Résoudre chemin source
+      let cpSrcPath = currentDir === '~' ? cpSrc : `${currentDir.substring(2)}/${cpSrc}`;
+      if (cpSrc.includes('/')) cpSrcPath = cpSrc;
+      if (fileContents[cpSrcPath] === undefined) {
+        appendLine(`cp: ${cpSrc}: No such file or directory`, 'error'); break;
+      }
+
+      // Résoudre chemin destination
+      let cpDestPath = currentDir === '~' ? cpDest : `${currentDir.substring(2)}/${cpDest}`;
+      if (cpDest.includes('/')) cpDestPath = cpDest;
+
+      // Déterminer répertoire destination pour mise à jour fileSystem
+      const cpDestDir = cpDestPath.includes('/') ? `~/${cpDestPath.substring(0, cpDestPath.lastIndexOf('/'))}` : currentDir;
+      const cpDestName = cpDestPath.includes('/') ? cpDestPath.substring(cpDestPath.lastIndexOf('/') + 1) : cpDest;
+
+      fileContents[cpDestPath] = fileContents[cpSrcPath];
+      if (!fileSystem[cpDestDir]) fileSystem[cpDestDir] = [];
+      if (!fileSystem[cpDestDir].includes(cpDestName)) fileSystem[cpDestDir].push(cpDestName);
+      persistSave();
+      break;
+    }
+
+    /* ── MV ───────────────────────────────────── */
+    case 'mv': {
+      const mvSrc  = args[0];
+      const mvDest = args[1];
+      if (!mvSrc || !mvDest) { appendLine('mv: usage: mv SOURCE DEST', 'error'); break; }
+
+      // Résoudre chemin source
+      let mvSrcPath = currentDir === '~' ? mvSrc : `${currentDir.substring(2)}/${mvSrc}`;
+      if (mvSrc.includes('/')) mvSrcPath = mvSrc;
+      if (fileContents[mvSrcPath] === undefined) {
+        appendLine(`mv: ${mvSrc}: No such file or directory`, 'error'); break;
+      }
+
+      // Résoudre chemin destination
+      let mvDestPath = currentDir === '~' ? mvDest : `${currentDir.substring(2)}/${mvDest}`;
+      if (mvDest.includes('/')) mvDestPath = mvDest;
+
+      const mvDestDir  = mvDestPath.includes('/') ? `~/${mvDestPath.substring(0, mvDestPath.lastIndexOf('/'))}` : currentDir;
+      const mvDestName = mvDestPath.includes('/') ? mvDestPath.substring(mvDestPath.lastIndexOf('/') + 1) : mvDest;
+      const mvSrcName  = mvSrc.includes('/') ? mvSrc.substring(mvSrc.lastIndexOf('/') + 1) : mvSrc;
+      const mvSrcDir   = mvSrcPath.includes('/') ? `~/${mvSrcPath.substring(0, mvSrcPath.lastIndexOf('/'))}` : currentDir;
+
+      // Copier et supprimer source
+      fileContents[mvDestPath] = fileContents[mvSrcPath];
+      delete fileContents[mvSrcPath];
+
+      // Mettre à jour les listings
+      if (!fileSystem[mvDestDir]) fileSystem[mvDestDir] = [];
+      if (!fileSystem[mvDestDir].includes(mvDestName)) fileSystem[mvDestDir].push(mvDestName);
+      if (fileSystem[mvSrcDir]) {
+        fileSystem[mvSrcDir] = fileSystem[mvSrcDir].filter(e => e !== mvSrcName);
+      }
+      persistSave();
+      break;
+    }
+
+    /* ── SUDO ─────────────────────────────────── */
+    case 'sudo': {
+      if (!isRoot) {
+        appendLine(`[sudo] password for ${currentUser}: `, 'warn');
+        appendLine(`${currentUser} is not in the sudoers file. This incident will be reported.`, 'error');
+      } else {
+        // root peut exécuter n'importe quoi, on relance la sous-commande
+        if (args.length > 0) {
+          handleCommand(args.join(' '));
+        }
+      }
+      break;
+    }
+
+    /* ── READ (POSIX) ────────────────────────────
+       read [-p prompt] varname
+       Lit une ligne depuis stdin (le champ saisie).
+       La valeur est stockée dans shellVars[varname]
+       et peut être affichée avec $varname ou echo $varname.
+    ─────────────────────────────────────────── */
+    case 'read': {
+      if (isTopActive) { appendLine('read: not available in top mode', 'error'); break; }
+
+      // Parser options : read [-p "prompt"] varname
+      let rPrompt = '';
+      let rVar    = '';
+      let i = 0;
+      while (i < args.length) {
+        if (args[i] === '-p' && args[i+1] !== undefined) {
+          rPrompt = args[i+1].replace(/^["']|["']$/g, '');
+          i += 2;
+        } else {
+          rVar = args[i];
+          i++;
+        }
+      }
+
+      if (!rVar) {
+        appendLine('read: usage: read [-p prompt] VARNAME', 'error');
+        break;
+      }
+
+      // Activer le mode lecture interactive
+      readMode    = true;
+      readVarName = rVar;
+      readPromptStr = rPrompt || `${rVar}: `;
+
+      // Modifier le label du prompt pour afficher le message de read
+      if (termPromptLabel) termPromptLabel.textContent = readPromptStr;
+      // Le prochain Enter capturé sera traité comme valeur de read
+      // (géré dans le handler keydown via readMode)
+      break;
+    }
+
+    /* ── SHIFT (POSIX) ───────────────────────────
+       shift [n]
+       Décale les paramètres positionnels de n (défaut 1).
+       $1 ← $2, $2 ← $3, … ; $# diminue de n.
+    ─────────────────────────────────────────── */
+    case 'shift': {
+      const n = parseInt(args[0], 10) || 1;
+      if (n < 0) { appendLine('shift: usage: shift [n≥0]', 'error'); break; }
+      if (n > positionalParams.length) {
+        appendLine(`shift: shift count out of range (have ${positionalParams.length}, asked ${n})`, 'error');
+        break;
+      }
+      positionalParams = positionalParams.slice(n);
+      // Affichage POSIX-style : $# et nouveaux $1…
+      if (positionalParams.length === 0) {
+        appendLine(`shift: positional parameters cleared. $# = 0`, 'dim');
+      } else {
+        const display = positionalParams.map((v,i) => `$${i+1}=${v}`).join('  ');
+        appendLine(`shift: $# = ${positionalParams.length}  —  ${display}`, 'cmd');
+      }
+      break;
+    }
+
+    /* ── SET (helper POSIX pour définir $1 $2 …) ─
+       set arg1 arg2 …
+       Définit les paramètres positionnels.
+    ─────────────────────────────────────────── */
+    case 'set': {
+      if (args.length === 0) {
+        // Sans args : affiche les variables shell courantes
+        if (Object.keys(shellVars).length === 0 && positionalParams.length === 0) {
+          appendLine('(no shell variables set)', 'dim');
+        } else {
+          Object.entries(shellVars).forEach(([k,v]) => appendLine(`${k}=${v}`, 'cmd'));
+          positionalParams.forEach((v,i) => appendLine(`$${i+1}=${v}`, 'cmd'));
+        }
+      } else {
+        positionalParams = [...args];
+        const display = positionalParams.map((v,i) => `$${i+1}=${v}`).join('  ');
+        appendLine(`$# = ${positionalParams.length}  —  ${display}`, 'cmd');
+      }
+      break;
+    }
+
+    /* ── ECHO (POSIX) avec expansion $var ────────
+       Remplace echo existant (déjà absent) pour
+       supporter $VAR et $1..$N.
+    ─────────────────────────────────────────── */
+    case 'echo': {
+      const raw = args.join(' ');
+      // Expansion des variables shell et des paramètres positionnels
+      const expanded = raw
+        .replace(/\$(\d+)/g, (_, n) => positionalParams[parseInt(n,10)-1] ?? '')
+        .replace(/\$#/g, String(positionalParams.length))
+        .replace(/\$(\w+)/g, (_, name) => shellVars[name] ?? '');
+      appendLine(expanded, 'cmd');
+      break;
+    }
+
+    /* ── OBS ─────────────────────────────────────
+       obs [--watch FILE] [--log] [--status]
+       Observateur de fichiers / journal système.
+       POSIX-flavored : surveille les fichiers du
+       filesystem virtuel, affiche les variations
+       et journalise dans ~/netschuss_lab.log.
+    ─────────────────────────────────────────── */
+    case 'obs': {
+      const subCmd = args[0] || '--status';
+
+      if (subCmd === '--status' || subCmd === '-s') {
+        // Rapport d'observation global
+        appendLine('─── OBS System Observer ────────────────────', 'dim');
+        appendLine(`  Filesystem watched entries : ${Object.keys(fileSystem).length}`, 'cmd');
+        appendLine(`  File contents indexed      : ${Object.keys(fileContents).length}`, 'cmd');
+        appendLine(`  Shell vars set             : ${Object.keys(shellVars).length}`, 'cmd');
+        appendLine(`  Positional params ($#)     : ${positionalParams.length}`, 'cmd');
+        appendLine(`  Jobs in table              : ${jobTable.length}`, 'cmd');
+        appendLine(`  Current user               : ${currentUser}  [${isRoot ? 'root' : 'user'}]`, 'cmd');
+        appendLine(`  CWD                        : ${currentDir}`, 'cmd');
+        appendLine('────────────────────────────────────────────', 'dim');
+        break;
+      }
+
+      if (subCmd === '--watch' || subCmd === '-w') {
+        const watchTarget = args[1];
+        if (!watchTarget) {
+          appendLine('obs: --watch requires a file argument', 'error');
+          break;
+        }
+        let wPath = currentDir === '~' ? watchTarget : `${currentDir.substring(2)}/${watchTarget}`;
+        if (watchTarget.includes('/')) wPath = watchTarget;
+
+        if (fileContents[wPath] !== undefined) {
+          appendLine(`obs: watching '${watchTarget}'`, 'warn');
+          appendLine(`  size  : ${fileContents[wPath].length} bytes`, 'cmd');
+          appendLine(`  lines : ${fileContents[wPath].split('\n').length}`, 'cmd');
+          appendLine(`  mtime : ${new Date().toISOString()}`, 'dim');
+          // Journaliser dans le log
+          const logEntry = `[OBS] ${new Date().toISOString()} WATCH ${watchTarget} by ${currentUser}`;
+          if (fileContents['netschuss_lab.log']) {
+            fileContents['netschuss_lab.log'] += '\n' + logEntry;
+          }
+          persistSave();
+        } else {
+          appendLine(`obs: '${watchTarget}': no such file in virtual FS`, 'error');
+        }
+        break;
+      }
+
+      if (subCmd === '--log' || subCmd === '-l') {
+        // Afficher les N dernières entrées du log système
+        const logSrc = fileContents['netschuss_lab.log'] || '(empty)';
+        appendLine('─── netschuss_lab.log ───────────────────────', 'dim');
+        logSrc.split('\n').forEach(l => appendLine(l, 'dim'));
+        appendLine('────────────────────────────────────────────', 'dim');
+        break;
+      }
+
+      if (subCmd === '--vars' || subCmd === '-v') {
+        if (Object.keys(shellVars).length === 0) {
+          appendLine('obs: no shell variables defined (use read to set)', 'dim');
+        } else {
+          appendLine('─── Shell Variables ─────────────────────────', 'dim');
+          Object.entries(shellVars).forEach(([k,v]) => appendLine(`  ${k}="${v}"`, 'cmd'));
+          appendLine('────────────────────────────────────────────', 'dim');
+        }
+        break;
+      }
+
+      // Aide intégrée
+      appendLine('obs — System Observer (POSIX extension)', 'warn');
+      appendLine('  obs --status   (-s)  Rapport d\'état global du système', '');
+      appendLine('  obs --watch F  (-w)  Observer un fichier (taille, lignes, mtime)', '');
+      appendLine('  obs --log      (-l)  Afficher le journal netschuss_lab.log', '');
+      appendLine('  obs --vars     (-v)  Lister les variables shell définies par read', '');
+      break;
+    }
+
+    /* ── JOBS ─────────────────────────────────────
+       jobs [-l]
+       Liste les jobs en arrière-plan POSIX.
+    ─────────────────────────────────────────── */
+    case 'jobs': {
+      if (jobTable.length === 0) {
+        appendLine('(no background jobs)', 'dim');
+        break;
+      }
+      const verbose = args[0] === '-l';
+      jobTable.forEach(j => {
+        const statusColor = j.status === 'running' ? 'cmd' : j.status === 'stopped' ? 'warn' : 'dim';
+        const line = verbose
+          ? `[${j.id}]  ${j.pid}  ${j.status.padEnd(8)}  ${j.cmd}`
+          : `[${j.id}]  ${j.status.padEnd(8)}  ${j.cmd}`;
+        appendLine(line, statusColor);
+      });
+      break;
+    }
+
+    /* ── FG (POSIX) ──────────────────────────────
+       fg [%jobid]
+       Ramène un job en arrière-plan au premier plan.
+       Dans ce shell simulé, les jobs sont créés
+       avec la syntaxe : commande &
+       FG ramène le job au premier plan et affiche
+       son résultat différé.
+    ─────────────────────────────────────────── */
+    case 'fg': {
+      if (jobTable.length === 0) {
+        appendLine('fg: no current jobs', 'error');
+        break;
+      }
+
+      // Sélectionner le job : fg %n ou le dernier job (current job)
+      let targetJob = null;
+      if (args[0]) {
+        const jid = parseInt(args[0].replace('%',''), 10);
+        targetJob = jobTable.find(j => j.id === jid);
+        if (!targetJob) {
+          appendLine(`fg: %${jid}: no such job`, 'error');
+          break;
+        }
+      } else {
+        // Prendre le dernier job actif (current job POSIX = [N]+)
+        targetJob = [...jobTable].reverse().find(j => j.status !== 'done');
+        if (!targetJob) {
+          appendLine('fg: no current job', 'error');
+          break;
+        }
+      }
+
+      appendLine(`fg: ${targetJob.cmd}`, 'warn');
+
+      // Simuler la reprise : délai pseudo-réel puis affichage résultat
+      targetJob.status = 'running';
+      setTimeout(() => {
+        appendLine(`[${targetJob.id}]+  Done    ${targetJob.cmd}`, 'cmd');
+        targetJob.status = 'done';
+        // Nettoyer la table des jobs terminés
+        jobTable = jobTable.filter(j => j.status !== 'done');
+        if (termScroll) termScroll.scrollTop = termScroll.scrollHeight;
+      }, 800 + Math.random() * 600);
+      break;
+    }
+
+    default:
+      // Détecter la syntaxe & (job en arrière-plan POSIX)
+      if (cmdLine.trimEnd().endsWith('&')) {
+        const bgCmd = cmdLine.trimEnd().slice(0,-1).trim();
+        if (bgCmd) {
+          const jid = jobTable.length + 1;
+          const pid = jobPidCounter++;
+          jobTable.push({ id: jid, pid, cmd: bgCmd, status: 'running' });
+          appendLine(`[${jid}] ${pid}`, 'cmd');
+          // Simuler la terminaison après 2-4 s
+          setTimeout(() => {
+            const j = jobTable.find(x => x.id === jid);
+            if (j) {
+              j.status = 'done';
+              appendLine(`[${jid}]+  Done    ${bgCmd}`, 'dim');
+              if (termScroll) termScroll.scrollTop = termScroll.scrollHeight;
+            }
+          }, 2000 + Math.random() * 2000);
+          break;
+        }
+      }
+      appendLine(`sde-shell: command not found: ${cmd}. Type 'help' for options.`, 'error');
+      break;
+  }
+}
+
+/* ─── TAB COMPLETION ENGINE ───────────────────── */
+const SHELL_COMMANDS = ['help','ls','cd','pwd','cat','history','whoami','top','clear','uname','uptime','read','shift','obs','fg','jobs'];
+
+const tabContextEl   = document.getElementById('tab-context');
+const tabCandidatesEl = document.getElementById('tab-candidates');
+const tabKeyBtn      = document.getElementById('tab-key-btn');
+
+// État de cycle TAB (pour naviguer entre candidats successifs)
+let tabCycleList  = [];
+let tabCycleIndex = -1;
+let tabBaseValue  = '';   // valeur du champ avant le premier TAB de la série
+
+function getCompletionCandidates(value) {
+  const parts = value.trimStart().split(/\s+/);
+  const isFirstToken = parts.length === 1 && !value.endsWith(' ');
+
+  if (isFirstToken) {
+    // Complétion de commande
+    const prefix = parts[0].toLowerCase();
+    return {
+      mode: 'cmd',
+      prefix,
+      matches: SHELL_COMMANDS.filter(c => c.startsWith(prefix))
+    };
+  }
+
+  // Complétion de chemin (argument)
+  const cmd  = parts[0].toLowerCase();
+  const arg  = parts.length >= 2 ? parts[parts.length - 1] : '';
+
+  // Déterminer le répertoire cible à lister
+  let lookupDir = currentDir;
+  let filePrefix = arg;
+
+  if (arg.includes('/')) {
+    // ex: "documents/note" → chercher dans ~/documents, prefix "note"
+    const slashIdx = arg.lastIndexOf('/');
+    const dirPart  = arg.substring(0, slashIdx);
+    filePrefix     = arg.substring(slashIdx + 1);
+    if (dirPart === '~' || dirPart === '') {
+      lookupDir = '~';
+    } else if (dirPart.startsWith('~/')) {
+      lookupDir = dirPart;
+    } else {
+      lookupDir = currentDir === '~' ? `~/${dirPart}` : `${currentDir}/${dirPart}`;
+    }
+  }
+
+  const entries = fileSystem[lookupDir] || [];
+  const matches = entries.filter(e => e.toLowerCase().startsWith(filePrefix.toLowerCase()));
+
+  // Distinguer dossiers vs fichiers
+  const typed = matches.map(m => {
+    const fullPath = lookupDir === '~' ? `~/${m}` : `${lookupDir}/${m}`;
+    const isDir    = !!fileSystem[fullPath];
+    return { name: m, isDir };
+  });
+
+  return { mode: 'path', prefix: filePrefix, cmd, arg, lookupDir, matches: typed };
+}
+
+function applyTabCompletion(candidate, result) {
+  if (!termInput) return;
+  const value = termInput.value.trimStart();
+  const parts  = value.split(/\s+/);
+
+  if (result.mode === 'cmd') {
+    termInput.value = candidate + ' ';
+  } else {
+    // Reconstituer la valeur : commande + éventuels args précédents + candidat
+    parts[parts.length - 1] = candidate.isDir
+      ? (result.arg.includes('/') ? result.arg.substring(0, result.arg.lastIndexOf('/') + 1) + candidate.name + '/'
+                                  : candidate.name + '/')
+      : (result.arg.includes('/') ? result.arg.substring(0, result.arg.lastIndexOf('/') + 1) + candidate.name
+                                  : candidate.name);
+    termInput.value = parts.join(' ');
+  }
+  termInput.focus();
+}
+
+function renderTabPanel(result) {
+  if (!tabContextEl || !tabCandidatesEl) return;
+  tabCandidatesEl.innerHTML = '';
+
+  if (!result || result.matches.length === 0) {
+    const noMatch = !result || result.prefix === ''
+      ? 'En attente de saisie…'
+      : `Aucun résultat pour <span class="tab-highlight">${result.prefix}</span>`;
+    tabContextEl.innerHTML = noMatch;
+    const span = document.createElement('span');
+    span.className = 'tab-no-match';
+    if (result && result.prefix !== '') span.textContent = '— aucune correspondance —';
+    tabCandidatesEl.appendChild(span);
+    return;
+  }
+
+  if (result.mode === 'cmd') {
+    tabContextEl.innerHTML = `Commande : <span class="tab-highlight">${result.prefix || '…'}</span>`;
+    result.matches.forEach((m, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'tab-candidate cmd-type';
+      btn.textContent = m;
+      if (i === tabCycleIndex) btn.classList.add('active-match');
+      btn.addEventListener('click', () => {
+        termInput.value = m + ' ';
+        termInput.focus();
+        triggerTabUpdate();
+      });
+      tabCandidatesEl.appendChild(btn);
+    });
+  } else {
+    const ctxCmd = result.cmd ? `<span class="tab-highlight">${result.cmd}</span> → ` : '';
+    tabContextEl.innerHTML = `${ctxCmd}chemin : <span class="tab-highlight">${result.arg || '…'}</span>`;
+    result.matches.forEach((item, i) => {
+      const btn = document.createElement('button');
+      btn.className = `tab-candidate ${item.isDir ? 'dir-type' : 'file-type'}`;
+      btn.textContent = item.isDir ? item.name + '/' : item.name;
+      if (i === tabCycleIndex) btn.classList.add('active-match');
+      btn.addEventListener('click', () => {
+        applyTabCompletion(item, result);
+        triggerTabUpdate();
+      });
+      tabCandidatesEl.appendChild(btn);
+    });
+  }
+}
+
+function triggerTabUpdate() {
+  if (!termInput || isTopActive) return;
+  const value = termInput.value;
+  const result = getCompletionCandidates(value);
+  tabCycleIndex = -1;
+  renderTabPanel(result);
+}
+
+function doTabCycle() {
+  if (!termInput || isTopActive) return;
+  const value = termInput.value;
+
+  // Initialiser ou continuer un cycle
+  const result = getCompletionCandidates(tabBaseValue !== '' ? tabBaseValue : value);
+
+  if (tabCycleList.length === 0 || tabBaseValue === '') {
+    tabBaseValue = value;
+    const r = getCompletionCandidates(value);
+    if (!r || r.matches.length === 0) {
+      renderTabPanel(r);
+      return;
+    }
+    tabCycleList  = r.mode === 'cmd' ? r.matches : r.matches;
+    tabCycleIndex = 0;
+    applyTabCompletion(r.mode === 'cmd' ? r.matches[0] : r.matches[0], r);
+    renderTabPanel(r);
+    return;
+  }
+
+  // Avancer dans le cycle
+  tabCycleIndex = (tabCycleIndex + 1) % tabCycleList.length;
+  const r = getCompletionCandidates(tabBaseValue);
+  applyTabCompletion(r.mode === 'cmd' ? r.matches[tabCycleIndex] : r.matches[tabCycleIndex], r);
+  renderTabPanel(r);
+}
+
+// Mettre à jour le panneau en temps réel à la saisie
+if (termInput) {
+  termInput.addEventListener('input', () => {
+    tabCycleList  = [];
+    tabCycleIndex = -1;
+    tabBaseValue  = '';
+    triggerTabUpdate();
+  });
+}
+
+// Bouton TAB dans le panneau System Monitor
+if (tabKeyBtn) {
+  tabKeyBtn.addEventListener('click', () => {
+    doTabCycle();
+    if (termInput) termInput.focus();
+  });
+}
+
+/* ─── TOP MODE MONITOR IMPLEMENTATION ─────────── */
+function launchTopMode() {
+  isTopActive = true;
+  if (termInputRow) termInputRow.style.display = 'none';
+  const btnAcquitter = document.getElementById('btn-acquitter');
+  if (btnAcquitter) btnAcquitter.classList.add('visible');
+  
+  function renderTopFrame() {
+    if (!termHistory) return;
+    termHistory.innerHTML = '';
+    
+    const now = new Date().toLocaleTimeString();
+    appendLine(`top - ${now} up 3 days,  7:45,  1 user,  load average: 0.14, 0.09, 0.06`, 'dim');
+    appendLine(`Tasks: 4 total,   1 running,   3 sleeping,   0 stopped,   0 zombie`, 'dim');
+    appendLine(`%Cpu(s):  ${globalCpuValue} us,  2.1 sy,  0.0 ni, 85.2 id,  0.1 wa,  0.0 hi`, 'dim');
+    appendLine(`MiB Mem :  32768.0 total,  28412.2 free,   3276.8 used,    1079.0 buff/cache`, 'dim');
+    appendLine('');
+    
+    appendLine('  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND', 'prompt');
+    
+    const p1Cpu = (1 + Math.random() * 2).toFixed(1);
+    const p2Cpu = (Math.random() * 1.5).toFixed(1);
+    const p3Cpu = Math.max(0, parseFloat(globalCpuValue) - parseFloat(p1Cpu) - parseFloat(p2Cpu)).toFixed(1);
+    
+    appendLine(` 1004 root      20   0  145210  42104  12480 S   ${p1Cpu}   0.1   1:42.08 kernel_d`);
+    appendLine(` 1120 ${currentUser.padEnd(9, ' ')}20   0  512800  94120  32104 R   ${p3Cpu}   0.3   0:54.12 Xsun_wm`);
+    appendLine(` 1205 root      20   0   84102  12402   4102 S   ${p2Cpu}   0.0   0:12.45 crypto_layer`);
+    appendLine(` 1442 ${currentUser.padEnd(9, ' ')}20   0   12440   3120   1420 S   0.0   0.0   0:00.32 sde-shell`);
+    
+    appendLine('');
+    appendLine('[ Appuyez sur \'q\' pour quitter le System Monitor ]', 'warn');
+  }
+
+  renderTopFrame();
+  topInterval = setInterval(renderTopFrame, 1000);
+}
+
+function quitTopMode() {
+  clearInterval(topInterval);
+  isTopActive = false;
+  if (termHistory) termHistory.innerHTML = '';
+  const btnAcquitter = document.getElementById('btn-acquitter');
+  if (btnAcquitter) btnAcquitter.classList.remove('visible');
+  
+  appendLine('Last login: today on tty1', 'dim');
+  appendLine('Welcome to TALMAGE SDE Shell. Type \'help\' for available commands.');
+  if (termInputRow) termInputRow.style.display = 'flex';
+  updatePrompt();
+  if (termInput) {
+    termInput.value = '';
+    setTimeout(() => termInput.focus(), 50);
+  }
+}
+</script>
+</body>
+  </html>
