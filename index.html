@@ -1861,6 +1861,43 @@ function handleCommand(cmdLine) {
       launchTopMode();
       break;
 
+          case 'mount': {
+      if (args.length === 0) {
+        // Afficher les volumes actuellement montés
+        if (mountedVolumes.size === 0) {
+          appendLine('mount: aucun volume étendu monté (connectez-vous en root ou tapez "mount -a")', 'dim');
+        } else {
+          rootMountTable.forEach(m => {
+            if (mountedVolumes.has(m.mountPoint)) {
+              appendLine(`${m.device} on ${m.mountPoint} type ${m.fsType} (${m.options})`, 'cmd');
+            }
+          });
+        }
+        break;
+      }
+      if (args[0] === '-a') {
+        autoMountAll(false);
+      } else {
+        appendLine('mount: usage: mount [-a]', 'error');
+      }
+      break;
+    }
+
+    case 'umount': {
+      if (!isRoot) {
+        appendLine('umount: permission denied (root privileges required)', 'error');
+        break;
+      }
+      if (args[0] === '-a') {
+        mountedVolumes.clear();
+        fileSystem['~'] = fileSystem['~'].filter(dir => dir !== 'mnt');
+        appendLine('umount: tous les volumes étendus ont été démontés.', 'warn');
+      } else {
+        appendLine('umount: usage: umount -a', 'error');
+      }
+      break;
+    }
+
     // INTERACTION : AFFICHAGE DU FICHIER (COMMANDE Unix 'cat')
     case 'cat':
       const filename = args[0];
